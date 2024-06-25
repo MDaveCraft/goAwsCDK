@@ -1,0 +1,16 @@
+{
+  "name": "Go",
+  "image": "mcr.microsoft.com/devcontainers/go:1-1.22-bookworm",
+  "features": {
+    "ghcr.io/devcontainers/features/aws-cli:1": {},
+    "ghcr.io/devcontainers-contrib/features/aws-cdk:2": {},
+    "ghcr.io/devcontainers-contrib/features/pnpm:2": {},
+    "ghcr.io/cirolosapio/devcontainers-features/alpine-ohmyzsh:0": {}
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": ["ms-vscode.makefile-tools"]
+    }
+  },
+  "postStartCommand": "sudo apt update && sudo apt upgrade -y && sudo chsh -s `which zsh` vscode"
+}
