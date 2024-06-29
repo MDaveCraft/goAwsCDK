@@ -3,152 +3,116 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"lambda-func/database/interfaces"
+	"lambda-func/database"
 	"lambda-func/types"
 	"net/http"
+
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type ApiHandler struct {
-	dynamoClient interfaces.IDbCLient
+	dbStore database.UserStore
 }
 
-func NewApiHandler(dynamoClient interfaces.IDbCLient) *ApiHandler {
-	return &ApiHandler{
-		dynamoClient: dynamoClient,
+func NewApiHandler(dbStore database.UserStore) ApiHandler {
+	return ApiHandler{
+		dbStore: dbStore,
 	}
 }
 
-func (api* ApiHandler) InsertUserHandler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	
+func (api ApiHandler) RegisterUserHandler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
 	var registerUser types.RegisterUser
 
-	err:= json.Unmarshal([]byte(request.Body), &registerUser)
-
+	err := json.Unmarshal([]byte(request.Body), &registerUser)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Invalid request body",
-			StatusCode:  http.StatusBadRequest,
+			Body:       "Invalid Request",
+			StatusCode: http.StatusBadRequest,
 		}, err
 	}
 
 	if registerUser.Username == "" || registerUser.Password == "" {
 		return events.APIGatewayProxyResponse{
-			Body: "Invalid request - fields empty",
-			StatusCode:  http.StatusBadRequest,
+			Body:       "Invalid request - fields empty",
+			StatusCode: http.StatusBadRequest,
 		}, err
 	}
 
-	userExists, err := api.dynamoClient.UserExists(registerUser.Username)
-
+	// does a user with this username already exist?
+	userExists, err := api.dbStore.DoesUserExist(registerUser.Username)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
+			Body:       "Internal server error",
+			StatusCode: http.StatusInternalServerError,
 		}, err
 	}
 
 	if userExists {
 		return events.APIGatewayProxyResponse{
-			Body: "User already exists",
-			StatusCode:  http.StatusConflict,
-		}, err
+			Body:       "User already exists",
+			StatusCode: http.StatusConflict,
+		}, nil
 	}
 
 	user, err := types.NewUser(registerUser)
-
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
-		}, fmt.Errorf("error creating user: %w", err)
+			Body:       "Internal server error",
+			StatusCode: http.StatusInternalServerError,
+		}, fmt.Errorf("could not create new user %w", err)
 	}
 
-	err = api.dynamoClient.InsertUser(user)
-
+	// we know that a user does not exist
+	err = api.dbStore.InsertUser(user)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
-		}, fmt.Errorf("error inserting user: %w", err)
+			Body:       "internal server error",
+			StatusCode: http.StatusInternalServerError,
+		}, fmt.Errorf("error inserting user - %w", err)
 	}
 
 	return events.APIGatewayProxyResponse{
-		Body: "User inserted successfully",
-		StatusCode:  http.StatusCreated,
+		Body:       "Successfully registered user",
+		StatusCode: http.StatusOK,
 	}, nil
 }
 
-func (api* ApiHandler) LoginUser(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	var login types.RegisterUser
+func (api ApiHandler) LoginUser(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+	type LoginRequest struct {
+		Username string `json:"username"`
+		Password string `json:"password"`
+	}
 
-	err:= json.Unmarshal([]byte(request.Body), &login)
+	var loginRequest LoginRequest
 
+	err := json.Unmarshal([]byte(request.Body), &loginRequest)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Invalid request body",
-			StatusCode:  http.StatusBadRequest,
+			Body:       "Invalid request",
+			StatusCode: http.StatusBadRequest,
 		}, err
 	}
 
-	if login.Username == "" || login.Password == "" {
-		return events.APIGatewayProxyResponse{
-			Body: "Invalid request - fields empty",
-			StatusCode:  http.StatusBadRequest,
-		}, err
-	}
-
-	userExists, err := api.dynamoClient.UserExists(login.Username)
-
+	user, err := api.dbStore.GetUser(loginRequest.Username)
 	if err != nil {
 		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
+			Body:       "Internal server error",
+			StatusCode: http.StatusInternalServerError,
 		}, err
 	}
 
-	if !userExists {
+	if !types.ValidatePassword(user.PasswordHash, loginRequest.Password) {
 		return events.APIGatewayProxyResponse{
-			Body: "User does not exist",
-			StatusCode:  http.StatusNotFound,
-		}, err
+			Body:       "Invalid user credentials",
+			StatusCode: http.StatusBadRequest,
+		}, nil
 	}
 
-	user, err := api.dynamoClient.GetUser(login.Username)
-
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
-		}, fmt.Errorf("error getting user: %w", err)
-	}
-
-	if !types.ValidatePassword(user.PasswordHash, login.Password) {
-		return events.APIGatewayProxyResponse{
-			Body: "Invalid password",
-			StatusCode:  http.StatusUnauthorized,
-		}, err
-	}
-
-	accessToken,err := types.CreateToken(user.Username)
-	if err != nil {
-		return events.APIGatewayProxyResponse{
-			Body: "Internal Server Error",
-			StatusCode:  http.StatusInternalServerError,
-		}, fmt.Errorf("error creating token: %w", err)
-	}
-	
-	successMsg := fmt.Sprintf(`{"accessToken": "%s"}`, accessToken)
+	accessToken := types.CreateToken(user)
+	successMsg := fmt.Sprintf(`{"access_token: "%s"}`, accessToken)
 
 	return events.APIGatewayProxyResponse{
-		Body: successMsg,
-		StatusCode:  http.StatusOK,
-	}, nil
-}
-
-func ProtectedHandler(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-	return events.APIGatewayProxyResponse{
-		Body: "This is a protected route",
+		Body:       successMsg,
 		StatusCode: http.StatusOK,
 	}, nil
 }

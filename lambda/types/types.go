@@ -1,13 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"time"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 )
-
-var secretKey = []byte("secret-key")
 
 type RegisterUser struct {
 	Username string `json:"username"`
@@ -19,44 +16,39 @@ type User struct {
 	PasswordHash string `json:"password"`
 }
 
-func NewUser(regUser RegisterUser) (User, error) {
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(regUser.Password), 31)
+func NewUser(registerUser RegisterUser) (User, error) {
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(registerUser.Password), 10)
 	if err != nil {
 		return User{}, err
 	}
+
 	return User{
-		Username:     regUser.Username,
+		Username:     registerUser.Username,
 		PasswordHash: string(hashedPassword),
 	}, nil
 }
 
-func ValidatePassword(hashPassword string, plainTextPassword string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hashPassword), []byte(plainTextPassword))
+func ValidatePassword(hashedPassword, plainTextPasword string) bool {
+	err := bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(plainTextPasword))
 	return err == nil
 }
 
-func CreateToken(username string) (string, error) {
-  token := jwt.NewWithClaims(jwt.SigningMethodHS256, 
-			jwt.MapClaims{ 
-				"username": username, 
-				"exp": time.Now().Add(time.Hour * 24).Unix(), 
-			})
-  tokenString, err := token.SignedString(secretKey)
-  if err != nil {
-		return "", err
-  }
-	return tokenString, nil
-}
+func CreateToken(user User) string {
+	now := time.Now()
+	validUntil := now.Add(time.Hour * 1).Unix()
 
-func VerifyToken(tokenString string) error {
-  token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-    return secretKey, nil
-  })
-  if err != nil {
-    return err
-  }
-  if !token.Valid {
-    return fmt.Errorf("invalid token")
-  }
-  return nil
+	claims := jwt.MapClaims{
+		"user":    user.Username,
+		"expires": validUntil,
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims, nil)
+	secret := "secret"
+
+	tokenString, err := token.SignedString([]byte(secret))
+	if err != nil {
+		return ""
+	}
+
+	return tokenString
 }
