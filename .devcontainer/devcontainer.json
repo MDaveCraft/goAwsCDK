@@ -1,10 +1,6 @@
 {
   "name": "Go",
   "image": "mcr.microsoft.com/devcontainers/go:1-1.22-bookworm",
-  "features": {
-    "ghcr.io/devcontainers/features/aws-cli:1": {},
-    "ghcr.io/devcontainers-contrib/features/aws-cdk:2": {}
-  },
   "customizations": {
     "vscode": {
       "extensions": ["ms-vscode.makefile-tools"]
