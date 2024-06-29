@@ -1,4 +1,4 @@
-module gocdk
+module goCdk
 
 go 1.18
 

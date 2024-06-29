@@ -3,18 +3,18 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"lambda-func/database"
+	"lambda-func/database/interfaces"
 	"lambda-func/types"
+	"lambda-func/utils"
 	"net/http"
-
 	"github.com/aws/aws-lambda-go/events"
 )
 
 type ApiHandler struct {
-	dbStore database.UserStore
+	dbStore interfaces.UserStore
 }
 
-func NewApiHandler(dbStore database.UserStore) ApiHandler {
+func NewApiHandler(dbStore interfaces.UserStore) ApiHandler {
 	return ApiHandler{
 		dbStore: dbStore,
 	}
@@ -101,14 +101,14 @@ func (api ApiHandler) LoginUser(request events.APIGatewayProxyRequest) (events.A
 		}, err
 	}
 
-	if !types.ValidatePassword(user.PasswordHash, loginRequest.Password) {
+	if !utils.ValidatePassword(user.PasswordHash, loginRequest.Password) {
 		return events.APIGatewayProxyResponse{
 			Body:       "Invalid user credentials",
 			StatusCode: http.StatusBadRequest,
 		}, nil
 	}
 
-	accessToken := types.CreateToken(user)
+	accessToken := utils.CreateToken(user)
 	successMsg := fmt.Sprintf(`{"access_token: "%s"}`, accessToken)
 
 	return events.APIGatewayProxyResponse{

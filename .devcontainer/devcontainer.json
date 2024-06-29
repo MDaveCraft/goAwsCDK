@@ -6,5 +6,5 @@
       "extensions": ["ms-vscode.makefile-tools"]
     }
   },
-  "postStartCommand": "sudo apt update && sudo apt upgrade -y && sudo chsh -s `which zsh` vscode"
+  "postStartCommand": "sudo apt update && sudo apt upgrade -y && sudo chsh -s `which zsh` vscode && sudo apt install awscli npm -y && npm install -g aws-cdk"
 }

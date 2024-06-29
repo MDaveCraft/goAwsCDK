@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
-
+	"lambda-func/utils"
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/golang-jwt/jwt/v5"
 )
@@ -14,9 +14,9 @@ import (
 // extracting our claims
 // validating everything
 
-func ValidateJWTMiddleware(next func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error)) func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
+func ValidateJWTMiddleware(next utils.HandlerFunc) utils.HandlerFunc {
+	
 	return func(request events.APIGatewayProxyRequest) (events.APIGatewayProxyResponse, error) {
-
 		// extract the headers
 		tokenString := extractTokenFromHeaders(request.Headers)
 		if tokenString == "" {

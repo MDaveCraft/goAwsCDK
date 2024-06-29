@@ -3,7 +3,6 @@ package database
 import (
 	"fmt"
 	"lambda-func/types"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -13,12 +12,6 @@ import (
 const (
 	TABLE_NAME = "userTable"
 )
-
-type UserStore interface {
-	DoesUserExist(username string) (bool, error)
-	InsertUser(user types.User) error
-	GetUser(username string) (types.User, error)
-}
 
 type DynamoDBClient struct {
 	databaseStore *dynamodb.DynamoDB
@@ -58,7 +51,6 @@ func (u DynamoDBClient) DoesUserExist(username string) (bool, error) {
 }
 
 func (u DynamoDBClient) InsertUser(user types.User) error {
-	// assemble the item
 	item := &dynamodb.PutItemInput{
 		TableName: aws.String(TABLE_NAME),
 		Item: map[string]*dynamodb.AttributeValue{
