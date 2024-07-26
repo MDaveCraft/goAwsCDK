@@ -1,8 +1,6 @@
-# Welcome to your CDK Go project!
+# AWS infrastructure deployment with GO and AWS CDK
 
-This is a blank project for CDK development with Go.
-
-The `cdk.json` file tells the CDK toolkit how to execute your app.
+The `cdk.json` file tells the CDK toolkit how to execute app.
 
 ## Useful commands
 
